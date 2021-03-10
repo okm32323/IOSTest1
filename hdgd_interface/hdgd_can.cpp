@@ -7,24 +7,49 @@ int can_init(char *canPort, int *can_fd, int read_id)
 {
     struct sockaddr_can addr;
     struct ifreq ifr;
-    struct can_filter rfilter = {0};
-    int fd;
+    int master = 0;
+    int fd = 0;
+    int ret = 0;
+    printf("canPort:%s\n", canPort);
+    fd = socket(PF_CAN, SOCK_RAW, CAN_RAW);
+    if (fd < 0) {
+        perror("socket PF_CAN failed");
+        return 1;
+    }
 
-    fd = socket(PF_CAN, SOCK_RAW, CAN_RAW);		// 创建套接字
-    strncpy(ifr.ifr_name, canPort, strlen(canPort));
-    ioctl(fd, SIOCGIFINDEX, &ifr);				// 指定can0设备
-    addr.can_family = AF_CAN;
+    strcpy(ifr.ifr_name, canPort);
+    ret = ioctl(fd, SIOCGIFINDEX, &ifr);
+    if (ret < 0) {
+        perror("ioctl failed");
+        return 1;
+    }
+
+    addr.can_family = PF_CAN;
     addr.can_ifindex = ifr.ifr_ifindex;
-    bind(fd, (struct sockaddr *)&addr, sizeof(addr));	// 将套接字与can0绑定
 
-    rfilter.can_id = read_id;
-    rfilter.can_mask = CAN_SFF_MASK;
-    // 禁用过滤规则
-   // setsockopt(s, SOL_CAN_RAW, CAN_RAW_FILTER, NULL, 0);
-    // 设置recv过滤规则
-    setsockopt(fd, SOL_CAN_RAW, CAN_RAW_FILTER, &rfilter, sizeof(rfilter));
+    ret = bind(fd, (struct sockaddr *)&addr, sizeof(addr));
+    if (ret < 0) {
+        perror("bind failed");
+        return 1;
+    }
+    if (1) {
+        struct can_filter filter[2];
+        filter[0].can_id = 0x200 | CAN_EFF_FLAG;
+        filter[0].can_mask = 0xFFF;
+
+        filter[1].can_id = 0x20F | CAN_EFF_FLAG;
+        filter[1].can_mask = 0xFFF;
+
+        ret = setsockopt(fd, SOL_CAN_RAW, CAN_RAW_FILTER,
+                                &filter, sizeof(filter));
+        if (ret < 0) {
+            perror("setsockopt failed");
+            return 1;
+        }
+    }
 
     *can_fd = fd;
+    printf("can_fd:%d\n", fd);
 
     return 0;
 }

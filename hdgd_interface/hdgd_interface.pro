@@ -25,4 +25,5 @@ HEADERS += \
     hdgd_can.h \
     hdgd_uart.h \
     hdgd_msg.h \
-    hdgd_analyze.h
+    hdgd_analyze.h \
+    hdgd_interface.h
